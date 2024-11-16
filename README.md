@@ -70,7 +70,7 @@ A continuación, se presenta una tabla con comandos útiles para explorar y admi
 | `\dt *.*`           | Muestra todas las tablas en todos los esquemas, incluidas las del sistema.                                       | `\dt *.*`                  |
 | `\h nombre_comando` | Proporciona información detallada sobre la sintaxis y uso de un comando SQL específico.                          | `\h SELECT`                |
 | `\?`                | Lista todos los metacomandos disponibles en `psql`.                                                              | `\?`                       |
-
+```
 ---
 
 ### Notas Adicionales:
@@ -78,3 +78,18 @@ A continuación, se presenta una tabla con comandos útiles para explorar y admi
 - **Documentación Oficial:** Consulta la [documentación oficial de PostgreSQL](https://www.postgresql.org/docs/current/app-psql.html) para obtener una referencia más completa.
 
 Este conjunto de comandos puede facilitar tareas como explorar bases de datos, analizar estructuras de tablas, y obtener detalles sobre roles y permisos.
+
+---
+
+# Soporte para Docker
+
+### 1. Modifica el .env para conexion a la base de datos y super usuario de django
+### 2. Ejecuta el comando run.sh
+
+Este ejecutable realiza las siguientes acciones:
+
+- Ejecuta y construye los servicios de django y la base de datos:  `docker-compose up -d`
+- Crea las migraciones de la base de datos `docker-compose exec -it voltix-back python3 site_app/manage.py makemigrations`  y `docker-compose exec -it voltix-back python3 site_app/manage.py migratre`
+- Crea el supers usuario 'docker-compose exec -it voltix-back python3 site_app/manage.py  createsuperuser --noinput'
+
+Para acceder a tu servicio de docker desplegado `http://host:8900`

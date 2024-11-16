@@ -20,7 +20,17 @@ COPY . .
 RUN find . -path "*/migrations/*.py" -not -name "__init__.py" -delete
 RUN find . -path "*/migrations/*.pyc"  -delete
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+ENV DJANGO_SUPERUSER_USERNAME= \
+    DJANGO_SUPERUSER_PASSWORD= \
+    DJANGO_SUPERUSER_EMAIL= \
+    DB_NAME=\
+    DB_USER= \
+    DB_PASSWORD= \
+    DB_HOST= \
+    DB_PORT=
+
+
 
 #For production
 #CMD ["uwsgi","--ini", "uwsgi.ini"]
