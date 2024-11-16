@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:15.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - PGUSER=${DB_USER}
+    volumes:
+      - pgdata:/var/lib/postgresql/data/
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready", "-d", "${DB_NAME}"]
+        interval: 30s
+        timeout: 60s
+        retries: 5
+        start_period: 80s
+    networks:
+      - voltix
+  web:
+    build: .
+    image: voltix-backend
+    restart: always
+    environment:
+      - DJANGO_SUPERUSER_USERNAME=${DJ_USERNAME}
+      - DJANGO_SUPERUSER_PASSWORD=${DJ_PASSWORD}
+      - DJANGO_SUPERUSER_EMAIL=${DJ_EMAIL}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    working_dir: /usr/share/app
+    volumes:
+      - .:/usr/share/app
+      - ./static:/usr/share/app/static
+    ports:
+      - "8900:8000"
+    depends_on:
+      db:
+          condition: service_healthy
+    networks:
+      - voltix
+volumes:
+  pgdata:
+
+networks:
+  voltix:
+        external: false
