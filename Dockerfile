@@ -2,6 +2,15 @@
 FROM python:3.12-bookworm
 
 
+# Install tesseract ocr with spanish package
+RUN apt update && apt install -y apt-transport-https wget && \
+    echo "deb [trusted==yes] https://notesalexp.org/tesseract-ocr5/bookworm/ bookworm main" | tee /etc/apt/sources.list.d/notesalexp.list > /dev/null && \
+    wget -O - https://notesalexp.org/debian/alexp_key.asc | apt-key add -  && \
+    apt update &&  apt-get install -y --allow-unauthenticated tesseract-ocr tesseract-ocr-spa   && \
+    apt-get clean autoclean && \
+    apt-get autoremove --yes && \
+    rm -rf /var/lib/{apt,dpkg,cache,log}/
+
 # Set the working directory
 WORKDIR /usr/share/app
 

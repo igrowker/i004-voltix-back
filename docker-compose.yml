@@ -38,6 +38,7 @@ services:
     volumes:
       - .:/usr/share/app
       - ./static:/usr/share/app/static
+      - ./ocr:/tmp
     ports:
       - "8900:8000"
     depends_on:

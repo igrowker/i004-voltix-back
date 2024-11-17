@@ -93,3 +93,23 @@ Este ejecutable realiza las siguientes acciones:
 - Crea el supers usuario 'docker-compose exec -it voltix-back python3 site_app/manage.py  createsuperuser --noinput'
 
 Para acceder a tu servicio de docker desplegado `http://host:8900`
+
+Para realizar pruebas:
+
+- En la carpeta OCR está la factura de prueba, en la misma se va a generar un output.txt donde están los datos obtenidos
+- `docker-compose exec -it voltix-back tesseract ocr/factura_demo.png output --psm 11 --oem 3  -l spa`
+- Opciones de tesseract para análisis de la imagen:
+```
+output: genera un archivo output.txt
+stdout: alternativa a output que imprime directamente la salida a pantalla(o variable)
+
+-l selecciona el idioma.
+
+--oem selecciona el algoritmo OCR.
+
+--psm selecciona el modo de segmentación de página.
+
+```
+
+Para mas info de los Modos de segmentación de página (PSM): https://pyimagesearch.com/2021/11/15/tesseract-page-segmentation-modes-psms-explained-how-to-improve-your-ocr-accuracy/
+
