@@ -88,9 +88,12 @@ Este conjunto de comandos puede facilitar tareas como explorar bases de datos, a
 
 Este ejecutable realiza las siguientes acciones:
 
+
+- Elimina el servicio actual:  `doker-compose down -v`
+- Reconstruye la imagen  `docker-compose build`
 - Ejecuta y construye los servicios de django y la base de datos:  `docker-compose up -d`
-- Crea las migraciones de la base de datos `docker-compose exec -it voltix-back python3 site_app/manage.py makemigrations`  y `docker-compose exec -it voltix-back python3 site_app/manage.py migratre`
-- Crea el supers usuario 'docker-compose exec -it voltix-back python3 site_app/manage.py  createsuperuser --noinput'
+- Crea las migraciones de la base de datos `docker-compose exec -it voltix-back python3 site_app/manage.py makemigrations`  y `docker-compose exec -it voltix-back python3 site_app/manage.py migrate`
+- Crea el super usuario `docker-compose exec -it voltix-back python3 site_app/manage.py  createsuperuser --noinput`
 
 Para acceder a tu servicio de docker desplegado `http://host:8900`
 
