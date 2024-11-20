@@ -1,5 +1,5 @@
 # Use an official Python image as the base image
-FROM python:3.12-bookworm
+FROM docker.uclv.cu/python:3.12-bookworm
 
 
 # Install tesseract ocr with spanish package
@@ -21,7 +21,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy the rest of the application files
-COPY . .
+COPY site_app/  .
 
 
 # Collect static files
@@ -42,7 +42,4 @@ ENV DJANGO_SUPERUSER_USERNAME= \
 
 
 #For production
-#CMD ["uwsgi","--ini", "uwsgi.ini"]
-
-#Only for development
-CMD ["python3", "site_app/manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["uwsgi","--ini", "uwsgi.ini"]

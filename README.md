@@ -95,7 +95,7 @@ Este ejecutable realiza las siguientes acciones:
 - Crea las migraciones de la base de datos `docker-compose exec -it voltix-back python3 site_app/manage.py makemigrations`  y `docker-compose exec -it voltix-back python3 site_app/manage.py migrate`
 - Crea el super usuario `docker-compose exec -it voltix-back python3 site_app/manage.py  createsuperuser --noinput`
 
-Para acceder a tu servicio de docker desplegado `http://host:8900`
+Para acceder a tu servicio de docker desplegado `http://host:8800`
 
 Para realizar pruebas:
 
