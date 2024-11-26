@@ -45,6 +45,7 @@ services:
           condition: service_healthy
     volumes:
      - ./facturas:/tmp
+     - ./site_app/static:/usr/share/app/static      
     networks:
       - voltix
   voltix-back-proxy:
@@ -56,6 +57,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/my_ginx.conf:/etc/nginx/sites-available/my_ginx.conf
+      - ./site_app/static:/app/static
     depends_on:
       - voltix-back
     networks:
