@@ -1,0 +1,9 @@
+DJ_USERNAME='admin'
+DJ_PASSWORD='admin1234'
+DJ_EMAIL='admin@admin.com'
+DB_NAME='MiLuz'
+DB_HOST='voltix_db'
+DB_PORT=5432
+DB_USER='postgres'
+DATABASE_PASSWORD='voltix'
+SECRET_KEY='django-insecure-tdbajof^6om84qix%vxin+9hes2@^i$1@s%xu^bkh4umy$r.(g'

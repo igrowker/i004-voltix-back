@@ -20,3 +20,4 @@ uritemplate==4.1.1
 pytesseract
 uwsgi
 pillow
+opencv-python-headless

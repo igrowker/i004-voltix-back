@@ -1,0 +1,70 @@
+services:
+  voltix_db:
+    image: postgres:15.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - PGUSER=${DB_USER}
+    volumes:
+      - pgdata:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready", "-d", "${DB_NAME}"]
+        interval: 30s
+        timeout: 60s
+        retries: 5
+        start_period: 80s
+    networks:
+      - voltix
+  voltix-back:
+    pull_policy: never
+    build:
+      context: .
+    image: voltix-backend
+    restart: always
+    environment:
+      - DJANGO_SUPERUSER_USERNAME=${DJ_USERNAME}
+      - DJANGO_SUPERUSER_PASSWORD=${DJ_PASSWORD}
+      - DJANGO_SUPERUSER_EMAIL=${DJ_EMAIL}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - CORS_ALLOW_ALL_ORIGINS=${CORS_ALLOW_ALL_ORIGINS}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - USE_DRF_SETTINGS=${USE_DRF_SETTINGS}
+      - DEBUG=${DEBUG}
+    working_dir: /usr/share/app
+    depends_on:
+      voltix_db:
+          condition: service_healthy
+    volumes:
+     - ./facturas:/tmp
+    networks:
+      - voltix
+  voltix-back-proxy:
+    container_name: voltix-back-proxy
+    image: nginx
+    restart: always
+    ports:
+      - "8800:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/my_ginx.conf:/etc/nginx/sites-available/my_ginx.conf
+    depends_on:
+      - voltix-back
+    networks:
+      - voltix
+
+volumes:
+  pgdata:
+
+
+networks:
+  voltix:
+    name: voltix
