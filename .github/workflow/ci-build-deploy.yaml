@@ -7,7 +7,7 @@ concurrency:
 on:
   push:
     branches:
-      - main
+      - devops_docker_demo
   workflow_dispatch:
     inputs:
       environment:
