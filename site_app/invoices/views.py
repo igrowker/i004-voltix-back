@@ -348,22 +348,28 @@ class InvoiceProcessView(APIView):
             # Normalizar el texto para facilitar la búsqueda
             normalized_text = re.sub(r"\s+", " ", ocr_text)  # Reemplazar múltiples espacios o saltos de línea con un solo espacio
 
-            # Lógica específica para extraer los campos en las facturas de Iberdrola
-            nombre_cliente = re.search(r"Titular:\s*([\w\s]+)", normalized_text)
+            # Ajustar regex para capturar solo el nombre del cliente
+            nombre_cliente_match = re.search(r"Titular\s*:?[\s]*(.*?)(?=\s+CIF|$)", normalized_text)
+            nombre_cliente = nombre_cliente_match.group(1).strip() if nombre_cliente_match else None
+
+            # Validación adicional para asegurarse de que el nombre capturado no contenga caracteres no deseados
+            if nombre_cliente:
+                nombre_cliente = re.sub(r"[^\w\s\.\-]", "", nombre_cliente).strip()
+
             numero_referencia = re.search(r"Número de contrato:\s*([\w\/-]+)", normalized_text)
             fecha_emision = re.search(r"Fecha de emisión:\s*(\d{2}/\d{2}/\d{4})", normalized_text)
             periodo_inicio = re.search(r"Periodo de facturación desde\s*(\d{2}/\d{2}/\d{4})", normalized_text)
             periodo_fin = re.search(r"hasta\s*(\d{2}/\d{2}/\d{4})", normalized_text)
             dias = re.search(r"Periodo de facturación:.*?(\d+)\s*días", normalized_text)
             fecha_cargo_raw = re.search(r"Fecha estimada de cargo:\s*(\d{2})\s*de\s*(\w+)\s*de\s*(\d{4})", normalized_text)
-            mandato = re.search(r"Mandato SEPA:\s*([\w\s]+)", normalized_text)
+            mandato = re.search(r"Código de mandato:\s*([\w\s]+)", normalized_text)
             costo_potencia = re.search(r"Costo por potencia:\s*([\d,\.]+)", normalized_text)
             costo_energia = re.search(r"Costo por energía:\s*([\d,\.]+)", normalized_text)
             descuentos = re.search(r"Descuentos:\s*([\d,\.]+)", normalized_text)
             impuestos = re.search(r"Impuestos:\s*([\d,\.]+)", normalized_text)
             total_a_pagar = re.search(r"Total a pagar:\s*([\d,\.]+)", normalized_text)
             consumo_punta = re.search(r"Consumo en punta:\s*([\d,\.]+)\s*kWh", normalized_text, re.IGNORECASE)
-            consumo_valle = re.search(r"Consumo en valle:\s*([\d,\.]+)\s*kW(?:n|h)", normalized_text, re.IGNORECASE)
+            consumo_valle = re.search(r"Consumo en valle:\s*([\d,\.]+)\s*kWh", normalized_text, re.IGNORECASE)
             consumo_total = re.search(r"Consumo total:\s*([\d,\.]+)\s*kWh", normalized_text, re.IGNORECASE)
             precio_efectivo_energia = re.search(r"Precio medio efectivo:\s*([\d,\.]+)\s*€/kWh", normalized_text, re.IGNORECASE)
 
@@ -398,7 +404,7 @@ class InvoiceProcessView(APIView):
 
             # Construir JSON
             parsed_data = {
-                "nombre_cliente": nombre_cliente.group(1).strip() if nombre_cliente else None,
+                "nombre_cliente": nombre_cliente,
                 "numero_referencia": numero_referencia.group(1) if numero_referencia else None,
                 "fecha_emision": format_date(fecha_emision.group(1)) if fecha_emision else None,
                 "periodo_facturacion": {
@@ -429,6 +435,9 @@ class InvoiceProcessView(APIView):
         except Exception as e:
             logger.error(f"Error al convertir OCR a JSON: {str(e)}")
             return {"error": "Error al convertir OCR a JSON."}
+
+
+
 
 
 
