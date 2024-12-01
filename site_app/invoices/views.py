@@ -111,8 +111,8 @@ class InvoiceProcessView(APIView):
 
                 # Realizar OCR en la primera imagen
                 if processed_images:
-                    ocr_text = self.perform_ocr(processed_images[0])
-                    parsed_data = self.convert_ocr_to_json(ocr_text)
+                    ocr_text = self.perform_ocr(processed_images[0])  # Texto extraído
+                    parsed_data = self.convert_ocr_to_json(ocr_text)  # Convertir OCR a JSON
                 else:
                     ocr_text = "No se pudieron procesar las imágenes para OCR."
                     parsed_data = {}
@@ -122,34 +122,13 @@ class InvoiceProcessView(APIView):
                     os.remove(file_path)
                     logger.info(f"Archivo PDF '{uploaded_file.name}' eliminado.")
 
-                # Guardar en la base de datos
-                from datetime import datetime
-
-                # Extraer datos para crear la factura
-                billing_period_start = parsed_data["periodo_facturacion"]["inicio"]
-                billing_period_end = parsed_data["periodo_facturacion"]["fin"]
-
-                # Si no hay fechas de facturación válidas, lanza un error
-                if not billing_period_start or not billing_period_end:
-                    raise ValueError("Faltan datos del período de facturación en el JSON procesado.")
-
-                # Crear la factura
-                invoice = Invoice.objects.create(
-                    user=request.user,  # Asigna el usuario autenticado
-                    billing_period_start=datetime.strptime(billing_period_start, "%Y-%m-%d"),
-                    billing_period_end=datetime.strptime(billing_period_end, "%Y-%m-%d"),
-                    data=parsed_data  # Almacena el JSON completo
-                )
-
-                logger.info(f"Factura creada con ID: {invoice.id}")
-
+                # Devolver el texto crudo del OCR y el JSON procesado
                 return Response(
                     {
                         "status": "success",
-                        "message": "Archivo procesado, texto extraído y datos guardados exitosamente.",
-                        "invoice_id": invoice.id,
-                        "parsed_data": parsed_data,
-                        "processed_images_count": len(processed_images),
+                        "message": "Archivo procesado y texto extraído exitosamente.",
+                        "ocr_text": ocr_text,  # Texto crudo capturado por OCR
+                        "parsed_data": parsed_data,  # JSON estructurado a partir del texto OCR
                     },
                     status=status.HTTP_201_CREATED,
                 )
@@ -166,6 +145,9 @@ class InvoiceProcessView(APIView):
 
         logger.warning(f"Validación fallida: {serializer.errors}")
         return Response({"status": "error", "details": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
     def pdf_to_images(self, pdf_path):
         """
@@ -241,10 +223,35 @@ class InvoiceProcessView(APIView):
 
     def convert_ocr_to_json(self, ocr_text):
         """
-        Convierte el texto OCR extraído a un JSON con el esquema proporcionado.
+        Convierte el texto OCR extraído a un JSON según la comercializadora detectada.
+        """
+        try:
+            # Detectar la comercializadora en el texto OCR
+            if "endesa" in ocr_text.lower():
+                logger.info("Detectada la palabra clave 'endesa'. Ejecutando lógica de Endesa.")
+                return self.extract_endesa_data(ocr_text)
+            elif "iberdrola" in ocr_text.lower():
+                logger.info("Detectada la palabra clave 'iberdrola'. Ejecutando lógica de Iberdrola.")
+                return self.extract_iberdrola_data(ocr_text)
+            else:
+                logger.warning("No se detectó una comercializadora reconocida en el OCR.")
+                return {
+                    "error": "No se reconoció ninguna comercializadora en el OCR.",
+                    "ocr_texto_completo": ocr_text
+                }
+
+        except Exception as e:
+            logger.error(f"Error al convertir OCR a JSON: {str(e)}")
+            return {"error": "Error al convertir OCR a JSON."}
+
+
+    def extract_endesa_data(self, ocr_text):
+        """
+        Extrae los datos específicos de las facturas de Endesa a partir del texto OCR.
         """
         try:
             import re
+            from datetime import datetime
 
             # Normalizar el texto para facilitar la búsqueda
             normalized_text = re.sub(r"\s+", " ", ocr_text)  # Reemplazar múltiples espacios o saltos de línea con un solo espacio
@@ -282,8 +289,6 @@ class InvoiceProcessView(APIView):
             precio_efectivo_energia = re.search(r"ha salido a\s+([\d,\.]+)\s*€/kWh", normalized_text, re.IGNORECASE)
 
             # Convertir fechas al formato estándar (yyyy-mm-dd)
-            from datetime import datetime
-
             def format_date(date_str):
                 try:
                     return datetime.strptime(date_str, "%d/%m/%Y").strftime("%Y-%m-%d")
@@ -345,6 +350,47 @@ class InvoiceProcessView(APIView):
         except Exception as e:
             logger.error(f"Error al convertir OCR a JSON: {str(e)}")
             return {"error": "Error al convertir OCR a JSON."}
+
+
+
+    def extract_iberdrola_data(self, ocr_text):
+        """
+        Extrae y procesa los datos específicos de las facturas de Iberdrola.
+        """
+        import re
+        from datetime import datetime
+
+        normalized_text = re.sub(r"\s+", " ", ocr_text)
+
+        # Lógica específica para Iberdrola
+        nombre_cliente = re.search(r"Titular:\s*(.+)", normalized_text)
+        numero_referencia = re.search(r"Número de contrato:\s*([\w\/-]+)", normalized_text)
+        fecha_emision = re.search(r"Fecha de emisión:\s*(\d{2}/\d{2}/\d{4})", normalized_text)
+        periodo_inicio = re.search(r"Periodo facturado: del\s*(\d{2}/\d{2}/\d{4})", normalized_text)
+        periodo_fin = re.search(r"a\s*(\d{2}/\d{2}/\d{4})", normalized_text)
+
+        # Convertir fechas
+        def format_date(date_str):
+            try:
+                return datetime.strptime(date_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+            except:
+                return None
+
+        parsed_data = {
+            "nombre_cliente": nombre_cliente.group(1) if nombre_cliente else None,
+            "numero_referencia": numero_referencia.group(1) if numero_referencia else None,
+            "fecha_emision": format_date(fecha_emision.group(1)) if fecha_emision else None,
+            "periodo_facturacion": {
+                "inicio": format_date(periodo_inicio.group(1)) if periodo_inicio else None,
+                "fin": format_date(periodo_fin.group(1)) if periodo_fin else None,
+            },
+            "forma_pago": "Transferencia bancaria",
+            "otros_campos_iberdrola": "Datos adicionales específicos de Iberdrola...",
+        }
+
+        return parsed_data
+
+
 
 ################################################################################################################################
 
