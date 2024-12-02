@@ -348,85 +348,72 @@ class InvoiceProcessView(APIView):
             # Normalizar el texto para facilitar la búsqueda
             normalized_text = re.sub(r"\s+", " ", ocr_text)  # Reemplazar múltiples espacios o saltos de línea con un solo espacio
 
-            # Ajustar regex para capturar solo el nombre del cliente
-            nombre_cliente_match = re.search(r"Titular\s*:?[\s]*(.*?)(?=\s+CIF|$)", normalized_text)
-            nombre_cliente = nombre_cliente_match.group(1).strip() if nombre_cliente_match else None
-
-            # Validación adicional para asegurarse de que el nombre capturado no contenga caracteres no deseados
-            if nombre_cliente:
-                nombre_cliente = re.sub(r"[^\w\s\.\-]", "", nombre_cliente).strip()
-
-            numero_referencia = re.search(r"Número de contrato:\s*([\w\/-]+)", normalized_text)
-            fecha_emision = re.search(r"Fecha de emisión:\s*(\d{2}/\d{2}/\d{4})", normalized_text)
-            periodo_inicio = re.search(r"Periodo de facturación desde\s*(\d{2}/\d{2}/\d{4})", normalized_text)
-            periodo_fin = re.search(r"hasta\s*(\d{2}/\d{2}/\d{4})", normalized_text)
-            dias = re.search(r"Periodo de facturación:.*?(\d+)\s*días", normalized_text)
-            fecha_cargo_raw = re.search(r"Fecha estimada de cargo:\s*(\d{2})\s*de\s*(\w+)\s*de\s*(\d{4})", normalized_text)
-            mandato = re.search(r"Código de mandato:\s*([\w\s]+)", normalized_text)
-            costo_potencia = re.search(r"Costo por potencia:\s*([\d,\.]+)", normalized_text)
-            costo_energia = re.search(r"Costo por energía:\s*([\d,\.]+)", normalized_text)
-            descuentos = re.search(r"Descuentos:\s*([\d,\.]+)", normalized_text)
-            impuestos = re.search(r"Impuestos:\s*([\d,\.]+)", normalized_text)
-            total_a_pagar = re.search(r"Total a pagar:\s*([\d,\.]+)", normalized_text)
-            consumo_punta = re.search(r"Consumo en punta:\s*([\d,\.]+)\s*kWh", normalized_text, re.IGNORECASE)
-            consumo_valle = re.search(r"Consumo en valle:\s*([\d,\.]+)\s*kWh", normalized_text, re.IGNORECASE)
-            consumo_total = re.search(r"Consumo total:\s*([\d,\.]+)\s*kWh", normalized_text, re.IGNORECASE)
-            precio_efectivo_energia = re.search(r"Precio medio efectivo:\s*([\d,\.]+)\s*€/kWh", normalized_text, re.IGNORECASE)
-
-            # Convertir fechas al formato estándar (yyyy-mm-dd)
-            def format_date(date_str):
+            # Función auxiliar para convertir fechas al formato YYYY-MM-DD
+            def format_date_to_yyyy_mm_dd(date_str):
                 try:
                     return datetime.strptime(date_str, "%d/%m/%Y").strftime("%Y-%m-%d")
-                except:
+                except ValueError:
                     return None
 
-            # Formatear la fecha de cargo si fue encontrada
-            meses_es = {
-                "enero": "01",
-                "febrero": "02",
-                "marzo": "03",
-                "abril": "04",
-                "mayo": "05",
-                "junio": "06",
-                "julio": "07",
-                "agosto": "08",
-                "septiembre": "09",
-                "octubre": "10",
-                "noviembre": "11",
-                "diciembre": "12"
-            }
-            fecha_cargo = None
-            if fecha_cargo_raw:
-                dia, mes, anio = fecha_cargo_raw.groups()
-                mes_numerico = meses_es.get(mes.lower())
-                if mes_numerico:
-                    fecha_cargo = f"{anio}-{mes_numerico}-{dia.zfill(2)}"
+            # Capturar nombre del cliente
+            nombre_cliente_match = re.search(r"Titular\s*([\w\s\.\-]+)", normalized_text, re.IGNORECASE)
+            nombre_cliente = nombre_cliente_match.group(1).strip() if nombre_cliente_match else None
+
+            # Capturar número de referencia
+            numero_referencia_match = re.search(r"Referencia contrato suministro\s*([\w\-]+)", normalized_text, re.IGNORECASE)
+            numero_referencia = numero_referencia_match.group(1).strip() if numero_referencia_match else None
+
+            # Capturar fecha de emisión
+            fecha_emision_match = re.search(r"Fecha de emisión de factura\s*([\d]{2}/[\d]{2}/[\d]{4})", normalized_text, re.IGNORECASE)
+            fecha_emision = format_date_to_yyyy_mm_dd(fecha_emision_match.group(1)) if fecha_emision_match else None
+
+            # Capturar período de facturación
+            periodo_facturacion_match = re.search(r"Periodo de facturación\s*([\d]{2}/[\d]{2}/[\d]{4})\s*—\s*([\d]{2}/[\d]{2}/[\d]{4})", normalized_text, re.IGNORECASE)
+            periodo_inicio = format_date_to_yyyy_mm_dd(periodo_facturacion_match.group(1)) if periodo_facturacion_match else None
+            periodo_fin = format_date_to_yyyy_mm_dd(periodo_facturacion_match.group(2)) if periodo_facturacion_match else None
+
+            # Calcular días del período de facturación
+            dias_facturacion = None
+            if periodo_inicio and periodo_fin:
+                dias_facturacion = (datetime.strptime(periodo_fin, "%Y-%m-%d") - datetime.strptime(periodo_inicio, "%Y-%m-%d")).days
+
+            # Capturar forma de pago
+            forma_pago_match = re.search(r"Forma de pago\s*:\s*(.*?)\s*(?=\n|Con contador inteligente)", normalized_text, re.IGNORECASE)
+            forma_pago = forma_pago_match.group(1).strip() if forma_pago_match else None
+
+            # Capturar fecha prevista de cargo
+            fecha_cargo_match = re.search(r"Fecha prevista de cargo\s*([\d]{2}/[\d]{2}/[\d]{4})", normalized_text, re.IGNORECASE)
+            fecha_cargo = format_date_to_yyyy_mm_dd(fecha_cargo_match.group(1)) if fecha_cargo_match else None
+
+            # Capturar mandato SEPA
+            mandato_match = re.search(r"Código de mandato\s*([\w\-]+)", normalized_text, re.IGNORECASE)
+            mandato = mandato_match.group(1).strip() if mandato_match else None
 
             # Construir JSON
             parsed_data = {
                 "nombre_cliente": nombre_cliente,
-                "numero_referencia": numero_referencia.group(1) if numero_referencia else None,
-                "fecha_emision": format_date(fecha_emision.group(1)) if fecha_emision else None,
+                "numero_referencia": numero_referencia,
+                "fecha_emision": fecha_emision,
                 "periodo_facturacion": {
-                    "inicio": format_date(periodo_inicio.group(1)) if periodo_inicio else None,
-                    "fin": format_date(periodo_fin.group(1)) if periodo_fin else None,
-                    "dias": int(dias.group(1)) if dias else None,
+                    "inicio": periodo_inicio,
+                    "fin": periodo_fin,
+                    "dias": dias_facturacion
                 },
-                "forma_pago": "Domiciliación bancaria",
+                "forma_pago": forma_pago,
                 "fecha_cargo": fecha_cargo,
-                "mandato": mandato.group(1).strip() if mandato else None,
+                "mandato": mandato,
                 "desglose_cargos": {
-                    "costo_potencia": float(costo_potencia.group(1).replace(",", ".")) if costo_potencia else None,
-                    "costo_energia": float(costo_energia.group(1).replace(",", ".")) if costo_energia else None,
-                    "descuentos": float(descuentos.group(1).replace(",", ".")) if descuentos else None,
-                    "impuestos": float(impuestos.group(1).replace(",", ".")) if impuestos else None,
-                    "total_a_pagar": float(total_a_pagar.group(1).replace(",", ".")) if total_a_pagar else None,
+                    "costo_potencia": None,  # Implementar lógica para extraer estos campos si es necesario
+                    "costo_energia": None,
+                    "descuentos": None,
+                    "impuestos": None,
+                    "total_a_pagar": None
                 },
                 "detalles_consumo": {
-                    "consumo_punta": float(consumo_punta.group(1).replace(",", ".")) if consumo_punta else None,
-                    "consumo_valle": float(consumo_valle.group(1).replace(",", ".")) if consumo_valle else None,
-                    "consumo_total": float(consumo_total.group(1).replace(",", ".")) if consumo_total else None,
-                    "precio_efectivo_energia": float(precio_efectivo_energia.group(1).replace(",", ".")) if precio_efectivo_energia else None,
+                    "consumo_punta": None,
+                    "consumo_valle": None,
+                    "consumo_total": None,
+                    "precio_efectivo_energia": None
                 },
             }
 
@@ -435,10 +422,6 @@ class InvoiceProcessView(APIView):
         except Exception as e:
             logger.error(f"Error al convertir OCR a JSON: {str(e)}")
             return {"error": "Error al convertir OCR a JSON."}
-
-
-
-
 
 
 
