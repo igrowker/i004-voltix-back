@@ -385,8 +385,8 @@ class InvoiceProcessView(APIView):
             fecha_cargo_match = re.search(r"Fecha prevista de cargo\s*([\d]{2}/[\d]{2}/[\d]{4})", normalized_text, re.IGNORECASE)
             fecha_cargo = format_date_to_yyyy_mm_dd(fecha_cargo_match.group(1)) if fecha_cargo_match else None
 
-            # Capturar mandato SEPA
-            mandato_match = re.search(r"Código de mandato\s*([\w\-]+)", normalized_text, re.IGNORECASE)
+            # Capturar mandato SEPA con una lógica más robusta
+            mandato_match = re.search(r"/consumidor\n\nCódigo de mandato:\s*(.*?)\s*\n\n\*= Ocultos para su seguridad", ocr_text, re.IGNORECASE)
             mandato = mandato_match.group(1).strip() if mandato_match else None
 
             # Construir JSON
@@ -422,6 +422,9 @@ class InvoiceProcessView(APIView):
         except Exception as e:
             logger.error(f"Error al convertir OCR a JSON: {str(e)}")
             return {"error": "Error al convertir OCR a JSON."}
+
+
+
 
 
 
